@@ -11,11 +11,11 @@ A lightweight terminal productivity tool written in Python.
 
 ## Features
 
-- Interactive CLI command palette with modern terminal styling.
-- System pulse display for environment information.
-- Creative prompt generation for project inspiration.
-- Focus timer with live progress feedback.
-- Visual command flow preview.
+- Interactive CLI palette with command aliases, fuzzy matching, and history.
+- Enhanced system pulse with git branch detection and load averages.
+- Creative prompt engine with project blueprints and surprise sparks.
+- Focus timer with Pomodoro support and cycle summaries.
+- Adaptive visual flow preview with rainbow text and terminal-aware layout.
 
 ## Usage
 
@@ -31,14 +31,27 @@ Run a single command directly:
 python main.py --command status
 ```
 
+Run a command with arguments:
+
+```bash
+python main.py --command timer --args 10 2
+```
+
 Available commands:
 
-- `status` - Show system pulse and environment info
-- `idea` - Generate a creative prompt
-- `timer` - Run a short focus timer
-- `demo` - Render a visual command palette preview
+- `status` (`sys`, `pulse`, `info`) - Show system pulse and environment info
+- `idea` (`spark`, `prompt`) - Generate an innovation prompt and design blueprint
+- `timer` (`focus`, `pomodoro`) - Run a countdown, work session, or Pomodoro cycle
+- `demo` (`show`, `view`) - Render an adaptive visual flow preview
+- `history` (`log`) - Review the commands executed during the session
+
+## Shell shortcuts
+
+- `help`, `menu`, `list` - Show command palette
+- `clear`, `cls` - Clear the screen
+- `exit`, `quit`, `q` - Exit the workbench
 
 ## Notes
 
-- The project uses standard Python libraries only.
-- For best terminal visuals, use a modern terminal such as Windows Terminal, PowerShell 7+, or any ANSI-compatible terminal.
+- The project uses only standard Python libraries.
+- For best terminal visuals, use Windows Terminal, PowerShell 7+, or any ANSI-compatible terminal.
