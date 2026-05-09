@@ -81,6 +81,33 @@ class ModernWorkbench:
                 aliases=("log",),
             )
         )
+        self.register_command(
+            Command(
+                name="workspace",
+                label="Workspace Insight",
+                description="Analyze the current project folder and suggest structure improvements.",
+                handler=self.inspect_workspace,
+                aliases=("inspect", "analyze"),
+            )
+        )
+        self.register_command(
+            Command(
+                name="shell",
+                label="Shell Runner",
+                description="Run a shell command and stream live terminal output.",
+                handler=self.run_shell_command,
+                aliases=("run", "exec", "cmd"),
+            )
+        )
+        self.register_command(
+            Command(
+                name="boost",
+                label="Momentum Booster",
+                description="Generate a high-energy focus prompt with a clear action plan.",
+                handler=self.generate_momentum_prompt,
+                aliases=("mood", "hype"),
+            )
+        )
 
     def register_command(self, command: Command) -> None:
         self.commands.append(command)
@@ -139,6 +166,10 @@ class ModernWorkbench:
             if normalized in {"clear", "cls"}:
                 clear_screen()
                 continue
+            if selection.startswith("!"):
+                await self.execute("shell", [selection[1:].strip()])
+                print()
+                continue
 
             parts = selection.split()
             await self.execute(parts[0], parts[1:])
@@ -185,6 +216,10 @@ class ModernWorkbench:
         if git_branch:
             metadata["Git Branch"] = git_branch
 
+        disk = shutil.disk_usage(os.getcwd())
+        metadata["Disk Usage"] = f"{disk.used // (1024 ** 3)}GB / {disk.total // (1024 ** 3)}GB"
+        metadata["Workspace Files"] = sum(len(files) for _, _, files in os.walk(os.getcwd()))
+
         for label, value in metadata.items():
             print(f"{ANSI_BOLD}{label:<18}{ANSI_RESET} {value}")
 
@@ -206,6 +241,149 @@ class ModernWorkbench:
             return result.stdout.strip()
         except subprocess.CalledProcessError:
             return None
+
+    async def stream_subprocess_output(self, stream: asyncio.StreamReader, prefix: str = "") -> None:
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            text = line.decode(errors="replace").rstrip()
+            print(f"{prefix}{text}{ANSI_RESET if prefix else ""}")
+
+    async def run_shell_command(self, argv: Sequence[str]) -> None:
+        self.print_header("Shell Runner")
+        if argv:
+            command_text = " ".join(argv)
+        else:
+            command_text = input("Shell command: ").strip()
+            if not command_text:
+                print(ANSI_YELLOW + "No shell command provided. Try `shell echo hello` or `!dir`." + ANSI_RESET)
+                return
+
+        print(ANSI_DIM + f"Executing:{ANSI_RESET} {command_text}")
+        process = await asyncio.create_subprocess_shell(
+            command_text,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        assert process.stdout is not None and process.stderr is not None
+        tasks = [
+            asyncio.create_task(self.stream_subprocess_output(process.stdout)),
+            asyncio.create_task(self.stream_subprocess_output(process.stderr, ANSI_RED)),
+        ]
+        await asyncio.wait(tasks)
+        return_code = await process.wait()
+        result_color = ANSI_GREEN if return_code == 0 else ANSI_RED
+        print(result_color + f"Process exited with code {return_code}." + ANSI_RESET)
+
+    async def inspect_workspace(self, argv: Sequence[str]) -> None:
+        self.print_header("Workspace Insight")
+        root = os.getcwd()
+        extension_counts: dict[str, int] = {}
+        largest_files: list[tuple[int, str]] = []
+        markers: set[str] = set()
+
+        marker_names = {
+            "pyproject.toml",
+            "requirements.txt",
+            "package.json",
+            "tsconfig.json",
+            "README.md",
+            ".gitignore",
+        }
+
+        for dirpath, _, filenames in os.walk(root):
+            for filename in filenames:
+                filepath = os.path.join(dirpath, filename)
+                ext = os.path.splitext(filename)[1].lower() or "<none>"
+                extension_counts[ext] = extension_counts.get(ext, 0) + 1
+                try:
+                    size = os.path.getsize(filepath)
+                except OSError:
+                    continue
+                largest_files.append((size, os.path.relpath(filepath, root)))
+                if filename in marker_names:
+                    markers.add(filename)
+
+        largest_files.sort(reverse=True)
+        total_files = sum(extension_counts.values())
+        top_types = sorted(extension_counts.items(), key=lambda item: item[1], reverse=True)[:5]
+
+        project_type = "Mixed / unknown"
+        if "package.json" in markers or "tsconfig.json" in markers:
+            project_type = "Node.js / TypeScript"
+        elif "pyproject.toml" in markers or "requirements.txt" in markers or any(ext == ".py" for ext in extension_counts):
+            project_type = "Python"
+
+        print(f"{ANSI_BOLD}Root:{ANSI_RESET} {root}")
+        print(f"{ANSI_BOLD}Detected Project Type:{ANSI_RESET} {project_type}")
+        print(f"{ANSI_BOLD}Total files scanned:{ANSI_RESET} {total_files}")
+        print(f"{ANSI_BOLD}Markers found:{ANSI_RESET} {', '.join(sorted(markers)) or 'none'}")
+        print()
+
+        print(ANSI_CYAN + "Top file types:" + ANSI_RESET)
+        for ext, count in top_types:
+            print(f"  {ANSI_GREEN}{ext or '<none>'}{ANSI_RESET}: {count}")
+
+        print()
+        print(ANSI_CYAN + "Largest files:" + ANSI_RESET)
+        for size, relative in largest_files[:5]:
+            print(f"  {ANSI_BLUE}{relative}{ANSI_RESET} — {size // 1024} KB")
+
+        print()
+        recommendations = []
+        if project_type == "Python" and "README.md" in markers:
+            recommendations.append("Add a short usage example to README.md.")
+        if project_type == "Node.js / TypeScript" and "package.json" in markers:
+            recommendations.append("Consider adding a script shortcut for build or test.")
+        if not markers:
+            recommendations.append("Track the workspace with a README and git for instant confidence.")
+
+        for recommendation in recommendations:
+            print(f"{ANSI_YELLOW}Tip:{ANSI_RESET} {recommendation}")
+
+    async def generate_momentum_prompt(self, argv: Sequence[str]) -> None:
+        self.print_header("Momentum Booster")
+        boosts = [
+            {
+                "title": "Spike the sprint",
+                "idea": "Choose one small feature, remove the noise, and ship it now.",
+                "plan": [
+                    "Define the smallest useful slice.",
+                    "Work without distractions for one focused cycle.",
+                    "Review only the result, not the process.",
+                ],
+            },
+            {
+                "title": "Polish the edge",
+                "idea": "Pick the part that feels hardest and make it feel effortless.",
+                "plan": [
+                    "Identify the friction point.",
+                    "Simplify the behavior until it feels natural.",
+                    "Celebrate the tiny win with a note.",
+                ],
+            },
+            {
+                "title": "Launch a micro-experiment",
+                "idea": "Build a minimal version of one bold idea and gather feedback fast.",
+                "plan": [
+                    "Write the simplest possible prototype.",
+                    "Share it with one person or one channel.",
+                    "Refine based on the first response.",
+                ],
+            },
+        ]
+
+        selection = random.choice(boosts)
+        print(ANSI_BOLD + selection["title"] + ANSI_RESET)
+        print(selection["idea"])
+        print()
+        for step in selection["plan"]:
+            print(f"{ANSI_CYAN}→{ANSI_RESET} {step}")
+
+        print()
+        print(ANSI_YELLOW + "Use `boost` again when you need fresh energy or a new angle." + ANSI_RESET)
 
     async def generate_innovation_prompt(self, argv: Sequence[str]) -> None:
         self.print_header("Creative Spark")

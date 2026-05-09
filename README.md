@@ -44,12 +44,16 @@ Available commands:
 - `timer` (`focus`, `pomodoro`) - Run a countdown, work session, or Pomodoro cycle
 - `demo` (`show`, `view`) - Render an adaptive visual flow preview
 - `history` (`log`) - Review the commands executed during the session
+- `workspace` (`inspect`, `analyze`) - Analyze the current project and suggest improvements
+- `shell` (`run`, `exec`, `cmd`) - Execute a shell command with live output
+- `boost` (`mood`, `hype`) - Generate a powerful momentum prompt and action plan
 
 ## Shell shortcuts
 
 - `help`, `menu`, `list` - Show command palette
 - `clear`, `cls` - Clear the screen
 - `exit`, `quit`, `q` - Exit the workbench
+- `!<command>` - Run a shell command directly, for example `!dir` or `!ls`
 
 ## Notes
 
