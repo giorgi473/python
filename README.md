@@ -25,16 +25,28 @@ Run the workbench:
 python main.py
 ```
 
+Show version:
+
+```bash
+python main.py --version
+```
+
 Run a single command directly:
 
 ```bash
-python main.py --command status
+python main.py --run status
 ```
 
 Run a command with arguments:
 
 ```bash
-python main.py --command timer --args 10 2
+python main.py --run timer --args 10 2
+```
+
+Search for text in files:
+
+```bash
+python main.py --run search "def" --type py --preview 3
 ```
 
 Available commands:
@@ -47,6 +59,8 @@ Available commands:
 - `workspace` (`inspect`, `analyze`) - Analyze the current project and suggest improvements
 - `shell` (`run`, `exec`, `cmd`) - Execute a shell command with live output
 - `boost` (`mood`, `hype`) - Generate a powerful momentum prompt and action plan
+- `version` (`ver`) - Show the workbench version
+- `search` (`find`, `grep`) - Intelligent search across files with context previews
 
 ## Shell shortcuts
 

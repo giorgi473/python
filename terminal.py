@@ -17,14 +17,17 @@ RAINBOW = [ANSI_RED, ANSI_YELLOW, ANSI_GREEN, ANSI_CYAN, ANSI_BLUE, ANSI_MAGENTA
 
 
 def terminal_width(default: int = 80) -> int:
+    """Get the current terminal width in columns."""
     return shutil.get_terminal_size((default, 20)).columns
 
 
 def clear_screen() -> None:
+    """Clear the terminal screen."""
     print("\033[2J\033[H", end="")
 
 
 def render_progress_bar(fraction: float, length: int = 30, fill_char: str = "█", color: str = ANSI_GREEN) -> str:
+    """Render a progress bar as a string."""
     fraction = max(0.0, min(1.0, fraction))
     filled = int(fraction * length)
     empty = length - filled
@@ -33,15 +36,18 @@ def render_progress_bar(fraction: float, length: int = 30, fill_char: str = "█
 
 
 def render_centered(text: str, width: int | None = None) -> str:
+    """Center text within the terminal width."""
     width = width or terminal_width()
     return text.center(width)
 
 
 def rainbow_text(text: str) -> str:
+    """Apply rainbow colors to text."""
     return "".join(RAINBOW[i % len(RAINBOW)] + char for i, char in enumerate(text)) + ANSI_RESET
 
 
 def wrap_text(text: str, width: int | None = None, indent: int = 0) -> str:
+    """Wrap text to fit within width, with optional indent."""
     width = width or terminal_width()
     if width <= indent + 20:
         return text

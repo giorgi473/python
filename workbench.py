@@ -12,6 +12,8 @@ import subprocess
 import sys
 from typing import List, Optional, Sequence
 
+import re
+
 from commands import Command
 from terminal import (
     ANSI_BLUE,
@@ -32,6 +34,8 @@ from terminal import (
 
 
 class ModernWorkbench:
+    """A modern terminal-based workbench for productivity and system management."""
+
     def __init__(self) -> None:
         self.commands: List[Command] = []
         self.history: List[str] = []
@@ -108,6 +112,24 @@ class ModernWorkbench:
                 aliases=("mood", "hype"),
             )
         )
+        self.register_command(
+            Command(
+                name="version",
+                label="Version Info",
+                description="Show the workbench version.",
+                handler=self.show_version,
+                aliases=("ver",),
+            )
+        )
+        self.register_command(
+            Command(
+                name="search",
+                label="Smart Finder",
+                description="Perform an intelligent search across files with live previews and context.",
+                handler=self.smart_search,
+                aliases=("find", "grep"),
+            )
+        )
 
     def register_command(self, command: Command) -> None:
         self.commands.append(command)
@@ -124,8 +146,8 @@ class ModernWorkbench:
         return suggestions
 
     async def run(self, args: argparse.Namespace) -> None:
-        if args.command:
-            await self.execute(args.command, args.args)
+        if args.run:
+            await self.execute(args.run, args.args)
             return
 
         clear_screen()
@@ -385,6 +407,81 @@ class ModernWorkbench:
         print()
         print(ANSI_YELLOW + "Use `boost` again when you need fresh energy or a new angle." + ANSI_RESET)
 
+    async def show_version(self, argv: Sequence[str]) -> None:
+        self.print_header("Version")
+        print("Modern Workbench v1.0")
+        print("Built with Python and asyncio.")
+        print(f"Python version: {platform.python_version()}")
+
+    async def smart_search(self, argv: Sequence[str]) -> None:
+        """Perform intelligent search across files with context previews."""
+        parser = argparse.ArgumentParser(prog="search", description="Smart file search with previews")
+        parser.add_argument("query", help="Search query")
+        parser.add_argument("--case", action="store_true", help="Case sensitive search")
+        parser.add_argument("--regex", action="store_true", help="Treat query as regex")
+        parser.add_argument("--type", help="File extension to search in (e.g., py, txt)")
+        parser.add_argument("--preview", type=int, default=2, help="Lines of context around matches")
+
+        try:
+            args = parser.parse_args(argv)
+        except SystemExit:
+            return
+
+        self.print_header("Smart Search Results")
+        root = os.getcwd()
+        query = args.query
+        flags = 0 if args.case else re.IGNORECASE
+        if args.regex:
+            try:
+                pattern = re.compile(query, flags)
+            except re.error as e:
+                print(f"{ANSI_RED}Invalid regex: {e}{ANSI_RESET}")
+                return
+        else:
+            pattern = re.compile(re.escape(query), flags)
+
+        matches = []
+        for dirpath, _, filenames in os.walk(root):
+            for filename in filenames:
+                if args.type and not filename.endswith(f".{args.type}"):
+                    continue
+                filepath = os.path.join(dirpath, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                        lines = f.readlines()
+                        for i, line in enumerate(lines, 1):
+                            if pattern.search(line):
+                                start = max(0, i - args.preview - 1)
+                                end = min(len(lines), i + args.preview)
+                                context = lines[start:end]
+                                matches.append({
+                                    'file': os.path.relpath(filepath, root),
+                                    'line': i,
+                                    'match': line.strip(),
+                                    'context': [l.strip() for l in context]
+                                })
+                except OSError:
+                    continue
+
+        if not matches:
+            print("No matches found.")
+            return
+
+        shown = 0
+        for match in matches:
+            if shown >= 20:
+                print(f"{ANSI_YELLOW}... and {len(matches) - 20} more matches{ANSI_RESET}")
+                break
+            print(f"{ANSI_BLUE}{match['file']}:{match['line']}{ANSI_RESET}")
+            for j, ctx in enumerate(match['context']):
+                line_num = match['line'] - args.preview + j
+                if line_num == match['line']:
+                    print(f"{ANSI_RED}{line_num:4d}: {ctx}{ANSI_RESET}")
+                else:
+                    print(f"{ANSI_DIM}{line_num:4d}: {ctx}{ANSI_RESET}")
+            print()
+            shown += 1
+
     async def generate_innovation_prompt(self, argv: Sequence[str]) -> None:
         self.print_header("Creative Spark")
         themes = [
@@ -455,7 +552,10 @@ class ModernWorkbench:
                 progress = elapsed / duration
                 bar = render_progress_bar(progress, length=32)
                 remaining = duration - elapsed
-                print(f"{ANSI_BOLD}Focus:{ANSI_RESET} {bar} {remaining}s remaining", end="\r", flush=True)
+                minutes = remaining // 60
+                seconds = remaining % 60
+                time_str = f"{minutes:02d}:{seconds:02d}"
+                print(f"{ANSI_BOLD}Focus:{ANSI_RESET} {bar} {time_str} remaining", end="\r", flush=True)
                 await asyncio.sleep(1)
             print()
             if cycle < cycles:

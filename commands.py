@@ -6,6 +6,7 @@ from typing import Awaitable, Callable, Sequence
 
 @dataclass(frozen=True)
 class Command:
+    """Represents a command in the workbench."""
     name: str
     label: str
     description: str
@@ -14,5 +15,6 @@ class Command:
     hidden: bool = False
 
     def matches(self, token: str) -> bool:
+        """Check if the token matches this command's name or aliases."""
         target = token.lower()
         return target == self.name or target in (alias.lower() for alias in self.aliases)
