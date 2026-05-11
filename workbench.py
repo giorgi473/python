@@ -4,15 +4,23 @@ import argparse
 import asyncio
 import datetime
 import difflib
+import fnmatch
+import math
 import os
 import platform
 import random
+import re
 import shutil
 import subprocess
 import sys
+import time
+from collections import Counter
 from typing import List, Optional, Sequence
 
-import re
+try:
+    import readline
+except ImportError:  # pragma: no cover
+    readline = None
 
 from commands import Command
 from terminal import (
@@ -27,6 +35,7 @@ from terminal import (
     clear_screen,
     rainbow_text,
     render_centered,
+    render_metric_bar,
     render_progress_bar,
     terminal_width,
     wrap_text,
@@ -39,6 +48,7 @@ class ModernWorkbench:
     def __init__(self) -> None:
         self.commands: List[Command] = []
         self.history: List[str] = []
+        self.session_start = time.monotonic()
 
         self.register_command(
             Command(
@@ -46,7 +56,7 @@ class ModernWorkbench:
                 label="System Pulse",
                 description="Show live system and environment information.",
                 handler=self.show_system_pulse,
-                aliases=("sys", "pulse", "info"),
+                aliases=("sys", "pulse", "info", "pulsecheck"),
             )
         )
         self.register_command(
@@ -64,7 +74,7 @@ class ModernWorkbench:
                 label="Focus Timer",
                 description="Run a countdown, quick timer, or Pomodoro cycle.",
                 handler=self.run_focus_timer,
-                aliases=("focus", "pomodoro"),
+                aliases=("focus", "pomodoro", "pomo"),
             )
         )
         self.register_command(
@@ -73,7 +83,7 @@ class ModernWorkbench:
                 label="Visual Flow",
                 description="Render an adaptive command palette preview.",
                 handler=self.render_command_palette,
-                aliases=("show", "view"),
+                aliases=("show", "view", "palette"),
             )
         )
         self.register_command(
@@ -82,7 +92,7 @@ class ModernWorkbench:
                 label="Command History",
                 description="Review the commands you've executed this session.",
                 handler=self.show_history,
-                aliases=("log",),
+                aliases=("log", "recent"),
             )
         )
         self.register_command(
@@ -91,7 +101,7 @@ class ModernWorkbench:
                 label="Workspace Insight",
                 description="Analyze the current project folder and suggest structure improvements.",
                 handler=self.inspect_workspace,
-                aliases=("inspect", "analyze"),
+                aliases=("inspect", "analyze", "audit", "radar"),
             )
         )
         self.register_command(
@@ -109,7 +119,7 @@ class ModernWorkbench:
                 label="Momentum Booster",
                 description="Generate a high-energy focus prompt with a clear action plan.",
                 handler=self.generate_momentum_prompt,
-                aliases=("mood", "hype"),
+                aliases=("mood", "hype", "charge"),
             )
         )
         self.register_command(
@@ -118,7 +128,7 @@ class ModernWorkbench:
                 label="Version Info",
                 description="Show the workbench version.",
                 handler=self.show_version,
-                aliases=("ver",),
+                aliases=("ver", "about"),
             )
         )
         self.register_command(
@@ -127,7 +137,17 @@ class ModernWorkbench:
                 label="Smart Finder",
                 description="Perform an intelligent search across files with live previews and context.",
                 handler=self.smart_search,
-                aliases=("find", "grep"),
+                aliases=("find", "grep", "seek"),
+            )
+        )
+        self.register_command(
+            Command(
+                name="secret",
+                label="Secret Magic",
+                description="Reveal a hidden easter egg and surprise workspace insight.",
+                handler=self.reveal_secret,
+                aliases=("magic", "easter", "hidden"),
+                hidden=True,
             )
         )
 
@@ -145,14 +165,37 @@ class ModernWorkbench:
         suggestions = difflib.get_close_matches(token, names, n=3, cutoff=0.4)
         return suggestions
 
+    def readline_completer(self, text: str, state: int) -> Optional[str]:
+        if readline is None:
+            return None
+        options = [command.name for command in self.commands if command.name.startswith(text)]
+        options += [alias for command in self.commands for alias in command.aliases if alias.startswith(text)]
+        options = sorted(set(options))
+        return options[state] if state < len(options) else None
+
+    def setup_readline(self) -> None:
+        if readline is None:
+            return
+        try:
+            readline.parse_and_bind("tab: complete")
+            readline.set_completer(self.readline_completer)
+        except Exception:
+            pass
+
+    def print_welcome(self) -> None:
+        self.print_header("Modern Workbench", style=ANSI_CYAN)
+        self.print_subtitle(
+            "Type a command, use 'help' for the palette, prefix a command with '!' to run shell commands, or discover the hidden magic."
+        )
+
     async def run(self, args: argparse.Namespace) -> None:
         if args.run:
             await self.execute(args.run, args.args)
             return
 
         clear_screen()
-        self.print_header("Modern Workbench", style=ANSI_CYAN)
-        self.print_subtitle("Type a command name, or enter 'help' for the palette.")
+        self.setup_readline()
+        self.print_welcome()
 
         await self.interactive_shell()
 
@@ -173,7 +216,13 @@ class ModernWorkbench:
 
     async def interactive_shell(self) -> None:
         while True:
-            selection = input(f"{ANSI_BOLD}> {ANSI_RESET}").strip()
+            try:
+                selection = input(f"{ANSI_BOLD}> {ANSI_RESET}").strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                print("Goodbye. Stay productive! ✨")
+                return
+
             if not selection:
                 self.print_menu()
                 continue
@@ -221,6 +270,8 @@ class ModernWorkbench:
 
     async def show_system_pulse(self, argv: Sequence[str]) -> None:
         self.print_header("System Pulse")
+        branch, git_status = self.detect_git_status()
+
         metadata = {
             "Timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
             "Platform": platform.system(),
@@ -228,41 +279,103 @@ class ModernWorkbench:
             "Python": platform.python_version(),
             "CPU Count": os.cpu_count() or "unknown",
             "Working Directory": os.getcwd(),
+            "Session Uptime": self.session_uptime(),
+            "Workspace Files": sum(len(files) for _, _, files in os.walk(os.getcwd())),
         }
+
+        if branch:
+            metadata["Git Branch"] = branch
+        if git_status:
+            metadata["Git Status"] = git_status
 
         if hasattr(os, "getloadavg"):
             load_avg = os.getloadavg()
             metadata["Load Average"] = ", ".join(f"{value:.2f}" for value in load_avg)
+            print(f"{ANSI_BOLD}Load 1m:{ANSI_RESET} {render_metric_bar(load_avg[0], max_value=4.0)}")
+            print(f"{ANSI_BOLD}Load 5m:{ANSI_RESET} {render_metric_bar(load_avg[1], max_value=4.0)}")
+            print(f"{ANSI_BOLD}Load15m:{ANSI_RESET} {render_metric_bar(load_avg[2], max_value=4.0)}")
+            print()
 
-        git_branch = self.detect_git_branch()
-        if git_branch:
-            metadata["Git Branch"] = git_branch
+        memory_summary, memory_bar = self.get_memory_summary()
+        if memory_summary:
+            print(f"{ANSI_BOLD}Memory:{ANSI_RESET} {memory_summary} {memory_bar}")
 
         disk = shutil.disk_usage(os.getcwd())
-        metadata["Disk Usage"] = f"{disk.used // (1024 ** 3)}GB / {disk.total // (1024 ** 3)}GB"
-        metadata["Workspace Files"] = sum(len(files) for _, _, files in os.walk(os.getcwd()))
+        disk_summary = f"{self.humanize_bytes(disk.used)} / {self.humanize_bytes(disk.total)}"
+        print(f"{ANSI_BOLD}Disk Usage:{ANSI_RESET} {disk_summary} {render_metric_bar(disk.used / disk.total * 100, max_value=100.0)}")
+        print()
 
         for label, value in metadata.items():
-            print(f"{ANSI_BOLD}{label:<18}{ANSI_RESET} {value}")
+            if label in {"Workspace Files"}:
+                print(f"{ANSI_BOLD}{label:<18}{ANSI_RESET} {value}")
+                continue
+            if label not in {"Git Status"}:
+                print(f"{ANSI_BOLD}{label:<18}{ANSI_RESET} {value}")
+        if git_status:
+            print(f"{ANSI_BOLD}Git Status:{ANSI_RESET} {git_status}")
 
         if sys.platform.startswith("win"):
             print()
             print(f"{ANSI_MAGENTA}Tip:{ANSI_RESET} For best visuals, use Windows Terminal or PowerShell 7+.")
 
-    def detect_git_branch(self) -> Optional[str]:
+    def detect_git_status(self) -> tuple[Optional[str], Optional[str]]:
         if shutil.which("git") is None:
-            return None
+            return None, None
         try:
-            result = subprocess.run(
+            branch_result = subprocess.run(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 text=True,
                 capture_output=True,
                 cwd=os.getcwd(),
                 check=True,
             )
-            return result.stdout.strip()
+            branch = branch_result.stdout.strip()
+
+            status_result = subprocess.run(
+                ["git", "status", "--short"],
+                text=True,
+                capture_output=True,
+                cwd=os.getcwd(),
+                check=True,
+            )
+            changes = status_result.stdout.strip().splitlines()
+            if not changes:
+                return branch, "Clean working tree"
+            staged = sum(1 for line in changes if line.startswith("A") or line.startswith("M") or line.startswith("R"))
+            untracked = sum(1 for line in changes if line.startswith("??"))
+            total = len(changes)
+            summary = f"{total} change(s)" + (f", {staged} staged" if staged else "") + (f", {untracked} untracked" if untracked else "")
+            return branch, summary
         except subprocess.CalledProcessError:
-            return None
+            return None, None
+
+    def session_uptime(self) -> str:
+        elapsed = int(time.monotonic() - self.session_start)
+        minutes, seconds = divmod(elapsed, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}h {minutes}m {seconds}s"
+        return f"{minutes}m {seconds}s"
+
+    def humanize_bytes(self, value: int) -> str:
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+            if value < 1024:
+                return f"{value:.1f}{unit}"
+            value /= 1024
+        return f"{value:.1f}PB"
+
+    def get_memory_summary(self) -> tuple[Optional[str], Optional[str]]:
+        if shutil.which("ps") or platform.system() != "Windows":
+            try:
+                import psutil
+
+                mem = psutil.virtual_memory()
+                summary = f"{self.humanize_bytes(mem.used)} / {self.humanize_bytes(mem.total)} ({mem.percent:.0f}%)"
+                bar = render_metric_bar(mem.percent, max_value=100.0)
+                return summary, bar
+            except (ImportError, Exception):
+                return None, None
+        return None, None
 
     async def stream_subprocess_output(self, stream: asyncio.StreamReader, prefix: str = "") -> None:
         while True:
@@ -305,6 +418,9 @@ class ModernWorkbench:
         extension_counts: dict[str, int] = {}
         largest_files: list[tuple[int, str]] = []
         markers: set[str] = set()
+        directory_counts: Counter[str] = Counter()
+        total_lines = 0
+        todo_count = 0
 
         marker_names = {
             "pyproject.toml",
@@ -313,9 +429,14 @@ class ModernWorkbench:
             "tsconfig.json",
             "README.md",
             ".gitignore",
+            "Dockerfile",
+            "setup.cfg",
+            "requirements.txt",
         }
 
         for dirpath, _, filenames in os.walk(root):
+            relative_dir = os.path.relpath(dirpath, root)
+            directory_counts[relative_dir] += len(filenames)
             for filename in filenames:
                 filepath = os.path.join(dirpath, filename)
                 ext = os.path.splitext(filename)[1].lower() or "<none>"
@@ -327,10 +448,19 @@ class ModernWorkbench:
                 largest_files.append((size, os.path.relpath(filepath, root)))
                 if filename in marker_names:
                     markers.add(filename)
+                if ext in {".py", ".js", ".ts", ".md", ".txt", ".json", ".yaml", ".yml"}:
+                    try:
+                        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                            lines = f.readlines()
+                            total_lines += len(lines)
+                            todo_count += sum(1 for line in lines if "TODO" in line or "FIXME" in line)
+                    except OSError:
+                        continue
 
         largest_files.sort(reverse=True)
         total_files = sum(extension_counts.values())
-        top_types = sorted(extension_counts.items(), key=lambda item: item[1], reverse=True)[:5]
+        top_types = sorted(extension_counts.items(), key=lambda item: item[1], reverse=True)[:6]
+        top_dirs = directory_counts.most_common(4)
 
         project_type = "Mixed / unknown"
         if "package.json" in markers or "tsconfig.json" in markers:
@@ -339,14 +469,21 @@ class ModernWorkbench:
             project_type = "Python"
 
         print(f"{ANSI_BOLD}Root:{ANSI_RESET} {root}")
-        print(f"{ANSI_BOLD}Detected Project Type:{ANSI_RESET} {project_type}")
-        print(f"{ANSI_BOLD}Total files scanned:{ANSI_RESET} {total_files}")
-        print(f"{ANSI_BOLD}Markers found:{ANSI_RESET} {', '.join(sorted(markers)) or 'none'}")
+        print(f"{ANSI_BOLD}Project Type:{ANSI_RESET} {project_type}")
+        print(f"{ANSI_BOLD}Total files:{ANSI_RESET} {total_files}")
+        print(f"{ANSI_BOLD}Total lines scanned:{ANSI_RESET} {total_lines}")
+        print(f"{ANSI_BOLD}TODO/FIXME notes:{ANSI_RESET} {todo_count}")
+        print(f"{ANSI_BOLD}Markers:{ANSI_RESET} {', '.join(sorted(markers)) or 'none'}")
         print()
 
         print(ANSI_CYAN + "Top file types:" + ANSI_RESET)
         for ext, count in top_types:
             print(f"  {ANSI_GREEN}{ext or '<none>'}{ANSI_RESET}: {count}")
+
+        print()
+        print(ANSI_CYAN + "Most active folders:" + ANSI_RESET)
+        for folder, count in top_dirs:
+            print(f"  {ANSI_BLUE}{folder}{ANSI_RESET}: {count} file(s)")
 
         print()
         print(ANSI_CYAN + "Largest files:" + ANSI_RESET)
@@ -355,14 +492,20 @@ class ModernWorkbench:
 
         print()
         recommendations = []
-        if project_type == "Python" and "README.md" in markers:
-            recommendations.append("Add a short usage example to README.md.")
+        if project_type == "Python" and "README.md" not in markers:
+            recommendations.append("Add README.md with a quick start section and sample commands.")
+        if project_type == "Python" and "requirements.txt" not in markers and "pyproject.toml" not in markers:
+            recommendations.append("Pin Python dependencies with requirements.txt or pyproject.toml.")
         if project_type == "Node.js / TypeScript" and "package.json" in markers:
-            recommendations.append("Consider adding a script shortcut for build or test.")
+            recommendations.append("Add npm scripts for lint, test, and build to simplify workflow.")
+        if todo_count > 0:
+            recommendations.append("Resolve or tag TODO/FIXME notes before the next release.")
+        if total_lines > 0 and total_files > 0 and todo_count == 0:
+            recommendations.append("The workspace looks clean — keep the momentum going!")
         if not markers:
-            recommendations.append("Track the workspace with a README and git for instant confidence.")
+            recommendations.append("Track the workspace with a README, .gitignore and project metadata files.")
 
-        for recommendation in recommendations:
+        for recommendation in recommendations[:5]:
             print(f"{ANSI_YELLOW}Tip:{ANSI_RESET} {recommendation}")
 
     async def generate_momentum_prompt(self, argv: Sequence[str]) -> None:
@@ -574,6 +717,9 @@ class ModernWorkbench:
         banner = rainbow_text("THE MOST MODERN COMMAND HUB")
         print(render_centered(banner, width))
         print()
+        grid = "   ".join([f"{ANSI_YELLOW}{step[:1]}{ANSI_RESET}:{ANSI_GREEN}{step[1:]}{ANSI_RESET}" for step in steps])
+        print(render_centered(grid, width))
+        print()
         print(ANSI_MAGENTA + wrap_text("This palette adapts to your terminal width and gives you an energizing flow for creative work.", width=width, indent=2) + ANSI_RESET)
 
     async def show_history(self, argv: Sequence[str]) -> None:
@@ -583,3 +729,19 @@ class ModernWorkbench:
             return
         for index, record in enumerate(self.history, start=1):
             print(f"{ANSI_GREEN}{index:>2}.{ANSI_RESET} {record}")
+        print()
+        print(ANSI_DIM + "Tip: Enter 'secret' or 'magic' to reveal something unexpected." + ANSI_RESET)
+
+    async def reveal_secret(self, argv: Sequence[str]) -> None:
+        self.print_header("Secret Magic", style=ANSI_MAGENTA)
+        print(rainbow_text("✨ HIDDEN FLOW UNLOCKED ✨"))
+        print()
+        hidden_lines = [
+            "Your workspace is full of energy.",
+            "A great idea is only one focused session away.",
+            "Combine your momentum with structure and ship the best version first.",
+        ]
+        for line in hidden_lines:
+            print(f"{ANSI_CYAN}{line}{ANSI_RESET}")
+        print()
+        print(ANSI_YELLOW + "You found the secret command! Keep exploring the palette for more surprises." + ANSI_RESET)

@@ -35,6 +35,14 @@ def render_progress_bar(fraction: float, length: int = 30, fill_char: str = "█
     return f"[{color}{fill_char * filled}{ANSI_RESET}{' ' * empty}] {percent}"
 
 
+def render_metric_bar(value: float, max_value: float = 100.0, length: int = 24, color: str = ANSI_GREEN) -> str:
+    """Render a metric progress bar for values like memory or load."""
+    if max_value <= 0:
+        return "[Invalid]"
+    fraction = max(0.0, min(1.0, value / max_value))
+    return render_progress_bar(fraction, length=length, color=color)
+
+
 def render_centered(text: str, width: int | None = None) -> str:
     """Center text within the terminal width."""
     width = width or terminal_width()
