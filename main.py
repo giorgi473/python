@@ -9,9 +9,20 @@ from workbench import ModernWorkbench
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Modern terminal workbench with async functionality.")
-    parser.add_argument("--version", action="version", version="Modern Workbench 1.0")
-    parser.add_argument("--run", help="Run a single command without the interactive shell.")
-    parser.add_argument("--args", "-a", nargs="*", default=[], help="Arguments to pass to the selected command.")
+    parser.add_argument("--version", action="version", version="Modern Workbench 1.2")
+    parser.add_argument(
+        "--run",
+        nargs="*",
+        default=[],
+        help="Run a single command and optional arguments without starting the interactive shell.",
+    )
+    parser.add_argument(
+        "--args",
+        "-a",
+        nargs="*",
+        default=[],
+        help="Additional arguments passed to the command when --run is used.",
+    )
     return parser.parse_args()
 
 

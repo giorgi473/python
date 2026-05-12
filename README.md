@@ -1,21 +1,22 @@
 # Modern Async CLI Workbench
 
-A lightweight terminal productivity tool written in Python.
+A modern terminal productivity environment written in Python.
 
 ## Project Structure
 
 - `main.py` - Entry point that starts the workbench.
-- `workbench.py` - Contains the `ModernWorkbench` class and the interactive command palette.
-- `commands.py` - Defines the `Command` dataclass used by the workbench.
-- `terminal.py` - Terminal helpers and ANSI styling utilities.
+- `workbench.py` - Contains the `ModernWorkbench` class and the dynamic command palette.
+- `commands.py` - Defines the lightweight `Command` dataclass used for registration.
+- `terminal.py` - Terminal styling utilities, progress rendering and helper functions.
 
 ## Features
 
-- Interactive CLI palette with command aliases, fuzzy matching, and history.
-- Enhanced system pulse with git branch detection and load averages.
-- Creative prompt engine with project blueprints and surprise sparks.
-- Focus timer with Pomodoro support and cycle summaries.
-- Adaptive visual flow preview with rainbow text and terminal-aware layout.
+- Dynamic command palette with categories, aliases, prefix matching, and fuzzy suggestions.
+- Async shell command runner with live stdout/stderr streaming.
+- Workspace analyzer with file type, folder activity, TODO detection, and project type hints.
+- Modern focus timer, momentum booster, creative prompt generator, and secret easter egg.
+- Smart search with regex, extension filtering, path targeting, and preview context.
+- ANSI-rich terminal visuals, centered layouts, and auto-completion support.
 
 ## Usage
 
@@ -46,30 +47,31 @@ python main.py --run timer --args 10 2
 Search for text in files:
 
 ```bash
-python main.py --run search "def" --type py --preview 3
+python main.py --run search --path . "def" --type py --preview 3
 ```
 
-Available commands:
+## Available commands
 
-- `status` (`sys`, `pulse`, `info`) - Show system pulse and environment info
-- `idea` (`spark`, `prompt`) - Generate an innovation prompt and design blueprint
-- `timer` (`focus`, `pomodoro`) - Run a countdown, work session, or Pomodoro cycle
-- `demo` (`show`, `view`) - Render an adaptive visual flow preview
-- `history` (`log`) - Review the commands executed during the session
-- `workspace` (`inspect`, `analyze`) - Analyze the current project and suggest improvements
-- `shell` (`run`, `exec`, `cmd`) - Execute a shell command with live output
-- `boost` (`mood`, `hype`) - Generate a powerful momentum prompt and action plan
-- `version` (`ver`) - Show the workbench version
-- `search` (`find`, `grep`) - Intelligent search across files with context previews
+- `status` (`sys`, `pulse`, `info`) - Show system pulse, git branch, and environment metadata
+- `workspace` (`inspect`, `analyze`, `audit`, `radar`) - Inspect the current project structure and suggest improvements
+- `search` (`find`, `grep`, `seek`) - Search with regex, extension and path filters plus preview context
+- `timer` (`focus`, `pomodoro`, `pomo`) - Run a focus timer or Pomodoro session
+- `boost` (`mood`, `hype`, `charge`) - Generate a high-energy action prompt
+- `idea` (`spark`, `prompt`) - Generate a creative productivity or project idea
+- `demo` (`show`, `view`, `palette`) - Render a terminal-friendly visual flow preview
+- `history` (`log`, `recent`) - Review session command history
+- `shell` (`run`, `exec`, `cmd`) - Execute a shell command with streamed output
+- `version` (`ver`, `about`) - Show version and runtime details
+- `secret` (`magic`, `easter`, `hidden`) - Reveal a hidden workspace message
 
 ## Shell shortcuts
 
-- `help`, `menu`, `list` - Show command palette
+- `help`, `menu`, `list` - Show the command palette
 - `clear`, `cls` - Clear the screen
 - `exit`, `quit`, `q` - Exit the workbench
 - `!<command>` - Run a shell command directly, for example `!dir` or `!ls`
 
 ## Notes
 
-- The project uses only standard Python libraries.
-- For best terminal visuals, use Windows Terminal, PowerShell 7+, or any ANSI-compatible terminal.
+- The project runs with standard Python libraries; optional `psutil` adds richer memory and CPU output.
+- For best terminal visuals, use Windows Terminal, PowerShell 7+, or an ANSI-compatible terminal.

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import shutil
+import textwrap
+from pathlib import Path
 
 ANSI_RESET = "\u001b[0m"
 ANSI_BOLD = "\u001b[1m"
@@ -24,6 +26,17 @@ def terminal_width(default: int = 80) -> int:
 def clear_screen() -> None:
     """Clear the terminal screen."""
     print("\033[2J\033[H", end="")
+
+
+def style_text(text: str, color: str = ANSI_RESET, bold: bool = False, dim: bool = False) -> str:
+    """Style text with ANSI color, bold, or dim effects."""
+    style = ""
+    if bold:
+        style += ANSI_BOLD
+    if dim:
+        style += ANSI_DIM
+    style += color
+    return f"{style}{text}{ANSI_RESET}"
 
 
 def render_progress_bar(fraction: float, length: int = 30, fill_char: str = "█", color: str = ANSI_GREEN) -> str:
@@ -59,15 +72,28 @@ def wrap_text(text: str, width: int | None = None, indent: int = 0) -> str:
     width = width or terminal_width()
     if width <= indent + 20:
         return text
-    words = text.split()
-    lines: list[str] = []
-    current = ""
-    for word in words:
-        if len(current) + len(word) + 1 > width - indent:
-            lines.append(current.rstrip())
-            current = " " * indent + word + " "
-        else:
-            current += word + " "
-    if current:
-        lines.append(current.rstrip())
+    wrapper = textwrap.TextWrapper(width=width - indent, initial_indent=" " * indent, subsequent_indent=" " * indent)
+    return wrapper.fill(text)
+
+
+def render_table(rows: list[list[str]], headers: list[str], padding: int = 2) -> str:
+    """Render a simple table with column alignment."""
+    column_widths = [max(len(cell) for cell in column) for column in zip(*([headers] + rows))]
+    padded = [width + padding for width in column_widths]
+    lines = []
+    header_line = "".join(headers[i].ljust(padded[i]) for i in range(len(headers)))
+    separator = "".join("-" * padded[i] for i in range(len(headers)))
+    lines.append(header_line)
+    lines.append(separator)
+    for row in rows:
+        lines.append("".join(row[i].ljust(padded[i]) for i in range(len(row))))
     return "\n".join(lines)
+
+
+def humanize_bytes(value: int, precision: int = 1) -> str:
+    """Convert bytes into a human readable string."""
+    for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
+        if value < 1024 or unit == "PB":
+            return f"{value:.{precision}f}{unit}"
+        value /= 1024
+    return f"{value:.{precision}f}PB"
