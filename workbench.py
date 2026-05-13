@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import datetime
 import difflib
+import logging
 import os
 import platform
 import random
@@ -52,6 +53,13 @@ class ModernWorkbench:
     VERSION = "1.2"
 
     def __init__(self) -> None:
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
         self.commands: List[Command] = []
         self.history: List[str] = []
         self.session_start = time.monotonic()
@@ -132,11 +140,19 @@ class ModernWorkbench:
                 category="Utility",
             ),
             Command(
-                name="version",
-                label="Version Info",
-                description="Show the workbench version and runtime details.",
-                handler=self.show_version,
-                aliases=("ver", "about"),
+                name="lint",
+                label="Code Quality Check",
+                description="Run linters like flake8 or pylint on the codebase.",
+                handler=self.run_linter,
+                aliases=("check", "quality"),
+                category="Utility",
+            ),
+            Command(
+                name="test",
+                label="Run Tests",
+                description="Execute test suites using pytest, unittest, or other test runners.",
+                handler=self.run_tests,
+                aliases=("tests", "unittest"),
                 category="Utility",
             ),
             Command(
@@ -212,6 +228,7 @@ class ModernWorkbench:
         await self.interactive_shell()
 
     async def execute(self, command_name: str, argv: Sequence[str] = ()) -> None:
+        self.logger.info(f"Executing command: {command_name} with args: {argv}")
         command = self.find_command(command_name) or self.find_command_by_prefix(command_name)
         if command is None:
             self.print_header("Unknown command", style=ANSI_YELLOW)
@@ -335,7 +352,7 @@ class ModernWorkbench:
             "Python": platform.python_version(),
             "Working Directory": str(root),
             "Session Uptime": self.session_uptime(),
-            "Workspace Paths": str(file_count),
+            "Total Files": str(file_count),
         }
 
     def print_section(self, title: str, data: dict[str, str]) -> None:
@@ -572,8 +589,79 @@ class ModernWorkbench:
         print(f"Python version: {platform.python_version()}")
         print(f"Runtime: {platform.python_implementation()} on {platform.system()} {platform.release()}")
 
+    async def run_linter(self, argv: Sequence[str]) -> None:
+        self.print_header("Code Quality Check")
+        linters = ["flake8", "pylint", "black --check", "isort --check-only"]
+        available_linters = []
+        for linter in linters:
+            cmd = linter.split()[0]
+            if shutil.which(cmd):
+                available_linters.append(linter)
+
+        if not available_linters:
+            print(ANSI_YELLOW + "No linters found. Install flake8, pylint, black, or isort for code quality checks." + ANSI_RESET)
+            return
+
+        print(f"Available linters: {', '.join(available_linters)}")
+        print("Running checks...")
+        for linter in available_linters:
+            print(f"\n{ANSI_CYAN}Running {linter}:{ANSI_RESET}")
+            try:
+                process = await asyncio.create_subprocess_shell(
+                    linter,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=Path.cwd(),
+                )
+                stdout, stderr = await process.communicate()
+                if stdout:
+                    print(stdout.decode(errors='replace'))
+                if stderr:
+                    print(ANSI_RED + stderr.decode(errors='replace') + ANSI_RESET)
+                if process.returncode == 0:
+                    print(ANSI_GREEN + f"{linter} passed." + ANSI_RESET)
+                else:
+                    print(ANSI_YELLOW + f"{linter} found issues (exit code {process.returncode})." + ANSI_RESET)
+            except Exception as e:
+                print(ANSI_RED + f"Error running {linter}: {e}" + ANSI_RESET)
+
+    async def run_tests(self, argv: Sequence[str]) -> None:
+        self.print_header("Run Tests")
+        test_runners = ["pytest", "python -m unittest discover", "python -m pytest"]
+        available_runners = []
+        for runner in test_runners:
+            cmd = runner.split()[0]
+            if shutil.which(cmd):
+                available_runners.append(runner)
+
+        if not available_runners:
+            print(ANSI_YELLOW + "No test runners found. Install pytest or use unittest for testing." + ANSI_RESET)
+            return
+
+        print(f"Available test runners: {', '.join(available_runners)}")
+        print("Running tests...")
+        for runner in available_runners[:1]:  # Run only the first available to avoid duplicates
+            print(f"\n{ANSI_CYAN}Running {runner}:{ANSI_RESET}")
+            try:
+                process = await asyncio.create_subprocess_shell(
+                    runner,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=Path.cwd(),
+                )
+                stdout, stderr = await process.communicate()
+                if stdout:
+                    print(stdout.decode(errors='replace'))
+                if stderr:
+                    print(ANSI_RED + stderr.decode(errors='replace') + ANSI_RESET)
+                if process.returncode == 0:
+                    print(ANSI_GREEN + f"Tests passed with {runner}." + ANSI_RESET)
+                else:
+                    print(ANSI_YELLOW + f"Tests failed with {runner} (exit code {process.returncode})." + ANSI_RESET)
+            except Exception as e:
+                print(ANSI_RED + f"Error running {runner}: {e}" + ANSI_RESET)
+
     async def smart_search(self, argv: Sequence[str]) -> None:
-        parser = argparse.ArgumentParser(prog="search", description="Smart file search with previews")
         parser.add_argument("query", help="Search query")
         parser.add_argument("--case", action="store_true", help="Case sensitive search")
         parser.add_argument("--regex", action="store_true", help="Treat query as regex")

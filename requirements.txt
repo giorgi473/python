@@ -1,0 +1,8 @@
+# Modern Workbench Requirements
+# Core dependencies
+psutil>=5.9.0  # For hardware monitoring (optional)
+pytest>=7.0.0  # For testing (optional)
+flake8>=6.0.0  # For linting (optional)
+pylint>=2.15.0  # For linting (optional)
+black>=22.0.0  # For code formatting (optional)
+isort>=5.12.0  # For import sorting (optional)

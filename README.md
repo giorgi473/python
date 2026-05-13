@@ -1,6 +1,17 @@
 # Modern Async CLI Workbench
 
-A modern terminal productivity environment written in Python.
+A modern terminal productivity environment written in Python with async capabilities.
+
+## Installation
+
+1. Clone or download the project.
+2. Install dependencies (optional, for enhanced features):
+
+```bash
+pip install -r requirements.txt
+```
+
+Note: Core functionality works without additional dependencies. Optional packages enable hardware monitoring, testing, and code quality checks.
 
 ## Project Structure
 
@@ -8,46 +19,83 @@ A modern terminal productivity environment written in Python.
 - `workbench.py` - Contains the `ModernWorkbench` class and the dynamic command palette.
 - `commands.py` - Defines the lightweight `Command` dataclass used for registration.
 - `terminal.py` - Terminal styling utilities, progress rendering and helper functions.
+- `requirements.txt` - Optional dependencies for enhanced features.
 
 ## Features
 
-- Dynamic command palette with categories, aliases, prefix matching, and fuzzy suggestions.
-- Async shell command runner with live stdout/stderr streaming.
-- Workspace analyzer with file type, folder activity, TODO detection, and project type hints.
-- Modern focus timer, momentum booster, creative prompt generator, and secret easter egg.
-- Smart search with regex, extension filtering, path targeting, and preview context.
-- ANSI-rich terminal visuals, centered layouts, and auto-completion support.
+- **Dynamic Command Palette**: Categorized commands with aliases, prefix matching, and fuzzy suggestions.
+- **Async Shell Runner**: Execute shell commands with live stdout/stderr streaming.
+- **Workspace Analyzer**: File type analysis, folder activity, TODO detection, and project type identification.
+- **Productivity Tools**: Focus timer, momentum booster, creative prompt generator, and hidden easter eggs.
+- **Smart Search**: Regex support, extension filtering, path targeting, and context previews.
+- **Code Quality**: Integrated linting and testing commands (requires external tools).
+- **Rich Terminal UI**: ANSI styling, centered layouts, progress bars, and auto-completion.
+
+## Commands
+
+### System Commands
+- `status` - Show system pulse, environment, and git metadata.
+- `workspace` - Analyze project structure and provide recommendations.
+- `search` - Smart file search with filters and previews.
+
+### Flow Commands
+- `timer` - Run focus timers (Pomodoro, countdown, intervals).
+- `boost` - Generate productivity prompts and action plans.
+
+### Creative Commands
+- `idea` - Create project ideas and innovation blueprints.
+- `demo` - Render command palette previews.
+- `secret` - Reveal hidden easter eggs.
+
+### Utility Commands
+- `history` - Review command execution history.
+- `shell` - Run shell commands with output streaming.
+- `lint` - Run code quality checks (flake8, pylint, etc.).
+- `test` - Execute test suites (pytest, unittest).
+- `version` - Show workbench version and runtime info.
 
 ## Usage
 
-Run the workbench:
+### Interactive Mode
 
 ```bash
 python main.py
 ```
 
-Show version:
+Type commands at the prompt. Use `help` for the command palette, `!` for shell shortcuts, or `quit` to exit.
+
+### Direct Command Execution
 
 ```bash
-python main.py --version
+python main.py --run <command> [args...]
 ```
 
-Run a single command directly:
+Examples:
 
 ```bash
 python main.py --run status
+python main.py --run timer 25
+python main.py --run search "TODO" --type py
+python main.py --run lint
 ```
 
-Run a command with arguments:
+### Command Line Options
 
-```bash
-python main.py --run timer --args 10 2
-```
+- `--version` - Show version information.
+- `--run` - Execute a single command and exit.
+- `--args` - Additional arguments for the command.
 
-Search for text in files:
+## Development
 
-```bash
-python main.py --run search --path . "def" --type py --preview 3
+The workbench is built with modern Python practices:
+- Type hints throughout
+- Async/await for concurrency
+- Dataclasses for data structures
+- Modular design for extensibility
+
+## Contributing
+
+Feel free to extend the command palette or improve the terminal UI. Ensure new commands follow the async handler pattern and include proper error handling.
 ```
 
 ## Available commands
