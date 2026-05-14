@@ -1,19 +1,11 @@
 from __future__ import annotations
 
+import os
 import shutil
+import sys
 import textwrap
 
 ANSI_RESET = "\u001b[0m"
-ANSI_BOLD = "\u001b[1m"
-ANSI_UNDERLINE = "\u001b[4m"
-ANSI_BLUE = "\u001b[34m"
-ANSI_CYAN = "\u001b[36m"
-ANSI_GREEN = "\u001b[32m"
-ANSI_MAGENTA = "\u001b[35m"
-ANSI_YELLOW = "\u001b[33m"
-ANSI_RED = "\u001b[31m"
-ANSI_WHITE = "\u001b[37m"
-ANSI_DIM = "\u001b[2m"
 ANSI_BOLD = "\u001b[1m"
 ANSI_UNDERLINE = "\u001b[4m"
 ANSI_BLUE = "\u001b[34m"
@@ -30,7 +22,17 @@ RAINBOW = [ANSI_RED, ANSI_YELLOW, ANSI_GREEN, ANSI_CYAN, ANSI_BLUE, ANSI_MAGENTA
 
 def terminal_width(default: int = 80) -> int:
     """Get the current terminal width in columns."""
-    return shutil.get_terminal_size((default, 20)).columns
+    try:
+        return shutil.get_terminal_size((default, 20)).columns
+    except OSError:
+        return default
+
+
+def supports_color() -> bool:
+    """Return True when the current terminal should support ANSI color."""
+    if sys.platform.startswith("win"):
+        return "ANSICON" in os.environ or "WT_SESSION" in os.environ or os.environ.get("TERM_PROGRAM") == "vscode"
+    return hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
 
 
 def clear_screen() -> None:

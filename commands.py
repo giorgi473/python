@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Awaitable, Callable, Sequence
 
+__all__ = ["Command"]
+
 
 @dataclass(frozen=True, slots=True)
 class Command:
