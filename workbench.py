@@ -60,7 +60,7 @@ class ModernWorkbench:
                 name="help",
                 label="Command Help",
                 description="Show available commands and usage help.",
-                handler=self.show_help,
+                handler=show_help,
                 aliases=("menu", "list"),
                 category="Utility",
             )
@@ -163,7 +163,7 @@ class ModernWorkbench:
             return
 
         self.history.append(" ".join([command_name, *list(argv)]).strip())
-        await command.handler(argv)
+        await command.handler(self, argv)
 
     async def interactive_shell(self) -> None:
         while True:
@@ -227,6 +227,11 @@ class ModernWorkbench:
         print(f"{ANSI_BLUE}exit{ANSI_RESET}     Quit the workbench")
         print(f"{ANSI_BLUE}clear{ANSI_RESET}    Clear the screen")
         print()
+
+
+async def show_help(workbench, argv: Sequence[str]) -> None:
+    workbench.print_header("Help")
+    workbench.print_menu()
 
     async def show_help(self, argv: Sequence[str]) -> None:
         self.print_header("Help")
