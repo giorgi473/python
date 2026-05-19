@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from commands import Command
+from commands import Command, command
 from terminal import (
     ANSI_BOLD, ANSI_CYAN, ANSI_GREEN, ANSI_MAGENTA, ANSI_RESET, ANSI_YELLOW, 
     render_centered, rainbow_text, wrap_text, terminal_width,
@@ -10,6 +10,13 @@ from terminal import (
 )
 
 
+@command(
+    name="idea",
+    label="Creative Spark",
+    description="Create a fresh project idea or productivity blueprint.",
+    aliases=("spark", "prompt"),
+    category="Creative",
+)
 async def generate_innovation_prompt(workbench, argv) -> None:
     workbench.print_header("Creative Spark")
     themes = [
@@ -55,6 +62,13 @@ async def generate_innovation_prompt(workbench, argv) -> None:
     print(Style().dim().italic().apply(f"Tip: Use `idea` again to generate a new spark."))
 
 
+@command(
+    name="demo",
+    label="Visual Flow",
+    description="Render an adaptive, terminal-aware command palette preview.",
+    aliases=("show", "view", "palette"),
+    category="Creative",
+)
 async def render_command_palette(workbench, argv) -> None:
     workbench.print_header("Visual Flow")
     width = terminal_width()
@@ -78,6 +92,14 @@ async def render_command_palette(workbench, argv) -> None:
     print(render_centered(Style().color(ANSI_MAGENTA).italic().apply(palette_desc), width))
 
 
+@command(
+    name="secret",
+    label="Secret Magic",
+    description="Reveal a hidden easter egg and deeper workspace insight.",
+    aliases=("magic", "easter", "hidden"),
+    category="Creative",
+    hidden=True,
+)
 async def reveal_secret(workbench, argv) -> None:
     workbench.print_header("Secret Magic", style=ANSI_MAGENTA)
     
@@ -98,33 +120,3 @@ async def reveal_secret(workbench, argv) -> None:
     print()
     tip = "You found the secret command! Keep exploring the palette for more surprises."
     print(render_centered(Style().color(ANSI_YELLOW).dim().apply(tip)))
-
-
-def get_commands(workbench) -> list[Command]:
-    return [
-        Command(
-            name="idea",
-            label="Creative Spark",
-            description="Create a fresh project idea or productivity blueprint.",
-            handler=generate_innovation_prompt,
-            aliases=("spark", "prompt"),
-            category="Creative",
-        ),
-        Command(
-            name="demo",
-            label="Visual Flow",
-            description="Render an adaptive, terminal-aware command palette preview.",
-            handler=render_command_palette,
-            aliases=("show", "view", "palette"),
-            category="Creative",
-        ),
-        Command(
-            name="secret",
-            label="Secret Magic",
-            description="Reveal a hidden easter egg and deeper workspace insight.",
-            handler=reveal_secret,
-            aliases=("magic", "easter", "hidden"),
-            category="Creative",
-            hidden=True,
-        ),
-    ]

@@ -248,12 +248,13 @@ def render_table(rows: list[list[Any]], headers: list[str], padding: int = 2) ->
     bot = "└─" + "─┴─".join("─" * w for w in col_widths) + "─┘"
     
     def format_row(row: list[str]) -> str:
-        cells = []
+        parts = []
         for i, cell in enumerate(row):
             w = col_widths[i]
-            diff = w - visible_len(cell)
-            cells.append(cell + " " * diff)
-        return "│ " + " │ ".join(cells) + " │"
+            # Account for visible vs actual length
+            extra = len(cell) - visible_len(cell)
+            parts.append(cell.ljust(w + extra))
+        return "│ " + " │ ".join(parts) + " │"
 
     output = [top, format_row(headers), mid]
     for row in data:
@@ -262,8 +263,36 @@ def render_table(rows: list[list[Any]], headers: list[str], padding: int = 2) ->
     
     return "\n".join(output)
 
+
+def render_divider(title: str | None = None, color: str = ANSI_DIM, width: int | None = None) -> str:
+    """Render a horizontal divider line, optionally with a title."""
+    width = width or terminal_width()
+    if not title:
+        return f"{color}{'─' * width}{ANSI_RESET}"
+    
+    title_len = len(title)
+    left_len = (width - title_len - 2) // 2
+    right_len = width - title_len - 2 - left_len
+    return f"{color}{'─' * left_len} {title} {'─' * right_len}{ANSI_RESET}"
+
+
+def render_notification(message: str, type: str = "info") -> str:
+    """Render a compact notification-style message."""
+    icons = {
+        "info": f"{ANSI_BLUE}ℹ{ANSI_RESET}",
+        "success": f"{ANSI_GREEN}✔{ANSI_RESET}",
+        "warning": f"{ANSI_YELLOW}⚠{ANSI_RESET}",
+        "error": f"{ANSI_RED}✖{ANSI_RESET}",
+        "tip": f"{ANSI_MAGENTA}💡{ANSI_RESET}",
+    }
+    icon = icons.get(type, icons["info"])
+    return f"{icon} {message}"
+
+
 def humanize_bytes(value: int, precision: int = 1, binary: bool = True) -> str:
     """Convert bytes into a human readable string with modern defaults."""
+    if value == 0:
+        return "0B"
     sign = "-" if value < 0 else ""
     value = abs(value)
     base = 1024 if binary else 1000

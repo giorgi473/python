@@ -34,31 +34,24 @@ from terminal import (
     wrap_text,
     render_box,
     gradient_text,
+    render_divider,
+    render_notification,
     RGB,
     Style,
 )
 
 
-class ModernWorkbench:
-    """A modern terminal-based workbench for productivity and system management."""
+class CommandManager:
+    """Manages command registration, discovery, and execution."""
 
-    VERSION = "1.2"
-
-    def __init__(self) -> None:
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-        handler = logging.StreamHandler(sys.stderr)
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+    def __init__(self, workbench: ModernWorkbench) -> None:
+        self.workbench = workbench
         self.commands: List[Command] = []
-        self.history: List[str] = []
-        self.session_start = time.monotonic()
-        self.register_commands()
+        self.logger = logging.getLogger(f"{__name__}.CommandManager")
 
     def register_commands(self) -> None:
-        self.commands.extend(self.load_component_commands())
+        """Loads and registers all commands from components and built-ins."""
+        self.commands.extend(self._load_component_commands())
         self.commands.append(
             Command(
                 name="help",
@@ -70,7 +63,7 @@ class ModernWorkbench:
             )
         )
 
-    def load_component_commands(self) -> list[Command]:
+    def _load_component_commands(self) -> list[Command]:
         component_dir = Path(__file__).parent / "components"
         commands: list[Command] = []
         if not component_dir.exists():
@@ -86,12 +79,23 @@ class ModernWorkbench:
                 self.logger.error(f"Failed to load component {module_name}: {exc}")
                 continue
 
-            get_commands = getattr(module, "get_commands", None)
-            if callable(get_commands):
-                try:
-                    commands.extend(get_commands(self))
-                except Exception as exc:
-                    self.logger.error(f"Component {module_name} failed to register commands: {exc}")
+            # First, check for the new decorator-based approach
+            found_decorator_commands = False
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if hasattr(attr, "_command_metadata"):
+                    meta = attr._command_metadata
+                    commands.append(Command(handler=attr, **meta))
+                    found_decorator_commands = True
+
+            # Fallback to the old get_commands pattern if no decorators found
+            if not found_decorator_commands:
+                get_commands = getattr(module, "get_commands", None)
+                if callable(get_commands):
+                    try:
+                        commands.extend(get_commands(self.workbench))
+                    except Exception as exc:
+                        self.logger.error(f"Component {module_name} failed to register commands: {exc}")
         return commands
 
     def find_command(self, token: str) -> Optional[Command]:
@@ -115,6 +119,42 @@ class ModernWorkbench:
         options = [command.name for command in self.commands if not command.hidden]
         return difflib.get_close_matches(token, options, n=4, cutoff=0.4)
 
+
+class ModernWorkbench:
+    """A modern terminal-based workbench for productivity and system management."""
+
+    VERSION = "1.2.0"
+
+    def __init__(self) -> None:
+        self._setup_logging()
+        self.command_manager = CommandManager(self)
+        self.history: List[str] = []
+        self.session_start = time.monotonic()
+        self.command_manager.register_commands()
+
+    def _setup_logging(self) -> None:
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+        if not self.logger.handlers:
+            handler = logging.StreamHandler(sys.stderr)
+            handler.setLevel(logging.INFO)
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+
+    @property
+    def commands(self) -> List[Command]:
+        return self.command_manager.commands
+
+    def find_command(self, token: str) -> Optional[Command]:
+        return self.command_manager.find_command(token)
+
+    def find_command_by_prefix(self, token: str) -> Optional[Command]:
+        return self.command_manager.find_command_by_prefix(token)
+
+    def suggest_commands(self, token: str) -> List[str]:
+        return self.command_manager.suggest_commands(token)
+
     def readline_completer(self, text: str, state: int) -> Optional[str]:
         if readline is None:
             return None
@@ -137,9 +177,10 @@ class ModernWorkbench:
 
     def print_welcome(self) -> None:
         self.print_header("Modern Workbench", style=ANSI_CYAN)
-        self.print_subtitle(
-            "Enter a command, use 'help' to open the palette, prefix with '!' for shell shortcuts, or explore hidden workflow features."
-        )
+        print(render_notification("Welcome back! Your async environment is ready.", type="success"))
+        print(render_notification("Type 'help' to see available commands or 'quit' to exit.", type="info"))
+        print(render_divider(color=ANSI_DIM))
+        print()
 
     async def run(self, args: argparse.Namespace) -> None:
         if args.run:
@@ -157,16 +198,20 @@ class ModernWorkbench:
         self.logger.info(f"Executing command: {command_name} with args: {argv}")
         command = self.find_command(command_name) or self.find_command_by_prefix(command_name)
         if command is None:
-            self.print_header("Unknown command", style=ANSI_YELLOW)
-            print(f"{ANSI_BOLD}{command_name}{ANSI_RESET} is not available.")
+            print(render_notification(f"Unknown command: {command_name}", type="error"))
             suggestions = self.suggest_commands(command_name)
             if suggestions:
                 print(f"Did you mean: {ANSI_GREEN}{', '.join(suggestions)}{ANSI_RESET}?")
-            print("Type 'help' to open the command palette.")
             return
 
         self.history.append(" ".join([command_name, *list(argv)]).strip())
-        await command.handler(self, argv)
+        try:
+            await command.handler(self, argv)
+        except Exception as exc:
+            self.logger.exception(f"Error executing command '{command_name}': {exc}")
+            self.print_header("Execution Error", style=ANSI_RED)
+            print(render_notification(f"An error occurred while running {command_name}: {exc}", type="error"))
+            print(f"\n{ANSI_DIM}Check the logs for more details.{ANSI_RESET}")
 
     async def interactive_shell(self) -> None:
         while True:
@@ -231,6 +276,12 @@ class ModernWorkbench:
         print(render_table(rows, ["Category", "Command", "Aliases", "Description"]))
         print(f"{ANSI_BLUE}exit{ANSI_RESET}     Quit the workbench")
         print(f"{ANSI_BLUE}clear{ANSI_RESET}    Clear the screen")
+        print()
+
+    def print_section(self, title: str, data: dict[str, str]) -> None:
+        print(style_text(title, ANSI_CYAN, bold=True))
+        for label, value in data.items():
+            print(f"{ANSI_BOLD}{label:<20}{ANSI_RESET} {value}")
         print()
 
 

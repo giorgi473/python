@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from commands import Command
+from commands import Command, command
 from terminal import (
     ANSI_BOLD,
     ANSI_CYAN,
@@ -24,6 +24,13 @@ from terminal import (
 )
 
 
+@command(
+    name="status",
+    label="System Pulse",
+    description="Show system pulse, environment, and git metadata.",
+    aliases=("sys", "pulse"),
+    category="System",
+)
 async def show_system_pulse(workbench, argv) -> None:
     workbench.print_header("System Pulse")
     metadata = collect_system_metadata(workbench.session_start)
@@ -138,16 +145,3 @@ def session_uptime(start_time: float) -> str:
     if hours:
         return f"{hours}h {minutes}m {seconds}s"
     return f"{minutes}m {seconds}s"
-
-
-def get_commands(workbench) -> list[Command]:
-    return [
-        Command(
-            name="status",
-            label="System Pulse",
-            description="Show live system, environment and git metadata.",
-            handler=show_system_pulse,
-            aliases=("sys", "pulse", "info", "pulsecheck"),
-            category="System",
-        ),
-    ]

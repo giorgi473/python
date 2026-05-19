@@ -4,10 +4,17 @@ import asyncio
 import random
 import time
 
-from commands import Command
-from terminal import ANSI_BOLD, ANSI_CYAN, ANSI_GREEN, ANSI_MAGENTA, ANSI_YELLOW, render_progress_bar
+from commands import Command, command
+from terminal import ANSI_BOLD, ANSI_CYAN, ANSI_GREEN, ANSI_MAGENTA, ANSI_YELLOW, ANSI_RESET, render_progress_bar
 
 
+@command(
+    name="boost",
+    label="Momentum Booster",
+    description="Generate productivity prompts and action plans.",
+    aliases=("momentum", "energy", "push", "hype", "charge"),
+    category="Flow",
+)
 async def generate_momentum_prompt(workbench, argv) -> None:
     workbench.print_header("Momentum Booster")
     boosts = [
@@ -50,6 +57,13 @@ async def generate_momentum_prompt(workbench, argv) -> None:
     print(ANSI_YELLOW + "Use `boost` again when you need fresh energy or a new angle." + ANSI_RESET)
 
 
+@command(
+    name="timer",
+    label="Focus Timer",
+    description="Run a countdown, Pomodoro session, or quick interval.",
+    aliases=("focus", "pomodoro", "pomo"),
+    category="Flow",
+)
 async def run_focus_timer(workbench, argv) -> None:
     workbench.print_header("Focus Timer")
     duration_minutes = 25
@@ -88,24 +102,3 @@ async def run_focus_timer(workbench, argv) -> None:
             await asyncio.sleep(2)
 
     print(ANSI_GREEN + "Focus session complete! Take a short break and reflect on progress. ☕" + ANSI_RESET)
-
-
-def get_commands(workbench) -> list[Command]:
-    return [
-        Command(
-            name="timer",
-            label="Focus Timer",
-            description="Run a countdown, Pomodoro session, or quick interval.",
-            handler=run_focus_timer,
-            aliases=("focus", "pomodoro", "pomo"),
-            category="Flow",
-        ),
-        Command(
-            name="boost",
-            label="Momentum Booster",
-            description="Generate a focused action plan and productivity prompt.",
-            handler=generate_momentum_prompt,
-            aliases=("mood", "hype", "charge"),
-            category="Flow",
-        ),
-    ]

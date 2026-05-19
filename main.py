@@ -7,30 +7,26 @@ import asyncio
 from workbench import ModernWorkbench
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(description="Modern terminal workbench with async functionality.")
     parser.add_argument("--version", action="version", version="Modern Workbench 1.2")
     parser.add_argument(
         "--run",
-        nargs="*",
-        default=[],
-        help="Run a single command and optional arguments without starting the interactive shell.",
+        help="Run a single command without starting the interactive shell.",
     )
-    parser.add_argument(
-        "--args",
-        "-a",
-        nargs="*",
-        default=[],
-        help="Additional arguments passed to the command when --run is used.",
-    )
-    return parser.parse_args()
+    return parser.parse_known_args()
 
 
 def main() -> None:
-    args = parse_args()
+    args, unknown = parse_args()
     workbench = ModernWorkbench()
     try:
-        asyncio.run(workbench.run(args))
+        if args.run:
+            # Reconstruct argv for the command execution
+            # We treat args.run as the command name and unknown as its arguments
+            asyncio.run(workbench.execute(args.run, unknown))
+        else:
+            asyncio.run(workbench.run(args))
     except KeyboardInterrupt:
         print("\nInterrupted. See you soon!")
 
