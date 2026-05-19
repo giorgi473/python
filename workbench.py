@@ -138,8 +138,7 @@ class ModernWorkbench:
     def print_welcome(self) -> None:
         self.print_header("Modern Workbench", style=ANSI_CYAN)
         self.print_subtitle(
-            "Type a command, use 'help' to open the palette, prefix with '!' for shell shortcuts, or explore hidden workflow features."
-            " / ბრძანების შეყვანა, გამოიყენეთ 'help' პალიტრის დასახელებისთვის, დაابقე '!' shell მოკლე გზებისთვის."
+            "Enter a command, use 'help' to open the palette, prefix with '!' for shell shortcuts, or explore hidden workflow features."
         )
 
     async def run(self, args: argparse.Namespace) -> None:
@@ -163,7 +162,7 @@ class ModernWorkbench:
             suggestions = self.suggest_commands(command_name)
             if suggestions:
                 print(f"Did you mean: {ANSI_GREEN}{', '.join(suggestions)}{ANSI_RESET}?")
-            print("Type 'help' to open the command palette. / დაწერეთ 'help' პალიტრის გამოსარჩენად.")
+            print("Type 'help' to open the command palette.")
             return
 
         self.history.append(" ".join([command_name, *list(argv)]).strip())
@@ -175,7 +174,7 @@ class ModernWorkbench:
                 selection = input(f"{ANSI_BOLD}{ANSI_CYAN}> {ANSI_RESET}").strip()
             except (EOFError, KeyboardInterrupt):
                 print()
-                print("Goodbye. Stay productive! ✨ / ნახვამდის. იყავით პროდუქტიული!")
+                print("Goodbye. Stay productive! ✨")
                 return
 
             if not selection:

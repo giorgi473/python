@@ -24,7 +24,7 @@ async def run_shell_command(workbench, argv) -> None:
     if not command_text:
         print(
             ANSI_YELLOW
-            + "No shell command provided. Try `shell echo hello` or `!dir`. / არ არის shell ბრძანება. სცადეთ `shell echo hello` ან `!dir`."
+            + "No shell command provided. Try `shell echo hello` or `!dir`."
             + ANSI_RESET
         )
         return
@@ -49,7 +49,7 @@ async def show_history(workbench, argv) -> None:
     if not workbench.history:
         print(
             ANSI_YELLOW
-            + "No commands executed yet. Start with `status` or `idea`. / ჯერ არა გაქვთ ბრძანება. დაიწყეთ `status` ან `idea`."
+            + "No commands executed yet. Start with `status` or `idea`."
             + ANSI_RESET
         )
         return
