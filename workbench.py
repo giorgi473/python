@@ -32,6 +32,10 @@ from terminal import (
     terminal_width,
     style_text,
     wrap_text,
+    render_box,
+    gradient_text,
+    RGB,
+    Style,
 )
 
 
@@ -203,14 +207,16 @@ class ModernWorkbench:
                 print()
 
     def print_header(self, text: str, style: str = ANSI_GREEN) -> None:
-        width = terminal_width()
-        border = style + "=" * width + ANSI_RESET
-        print(border)
-        print(style + ANSI_BOLD + text.center(width) + ANSI_RESET)
-        print(border)
+        width = min(terminal_width(), 100)
+        # Use gradient for header text if it's the main title
+        if text in ["Modern Workbench", "Command Palette"]:
+            header = gradient_text(text, RGB(0, 255, 200), RGB(0, 150, 255))
+            print(render_box(header, color=ANSI_CYAN, width=width))
+        else:
+            print(render_box(text, color=style, width=width))
 
     def print_subtitle(self, text: str) -> None:
-        print(ANSI_MAGENTA + wrap_text(text, indent=2) + ANSI_RESET)
+        print(Style().color(ANSI_MAGENTA).dim().italic().apply(wrap_text(text, indent=2)))
         print()
 
     def print_menu(self) -> None:

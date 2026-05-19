@@ -3,7 +3,11 @@ from __future__ import annotations
 import random
 
 from commands import Command
-from terminal import ANSI_BOLD, ANSI_CYAN, ANSI_GREEN, ANSI_MAGENTA, ANSI_RESET, ANSI_YELLOW, render_centered, rainbow_text, wrap_text, terminal_width
+from terminal import (
+    ANSI_BOLD, ANSI_CYAN, ANSI_GREEN, ANSI_MAGENTA, ANSI_RESET, ANSI_YELLOW, 
+    render_centered, rainbow_text, wrap_text, terminal_width,
+    RGB, gradient_text, render_box, Style
+)
 
 
 async def generate_innovation_prompt(workbench, argv) -> None:
@@ -39,53 +43,61 @@ async def generate_innovation_prompt(workbench, argv) -> None:
     ]
 
     choice = random.choice(themes)
-    print(ANSI_BOLD + choice["title"] + ANSI_RESET)
-    print(choice["idea"])
+    
+    # Use gradient for title
+    title = gradient_text(choice["title"], RGB(255, 100, 0), RGB(255, 255, 0))
+    
+    # Use render_box for the idea
+    idea_content = f"{choice['idea']}\n\n" + "\n".join(f"• {step}" for step in choice["steps"])
+    print(render_box(idea_content, title=choice["title"], color=ANSI_CYAN))
+    
     print()
-    for step in choice["steps"]:
-        print(f"{ANSI_CYAN}•{ANSI_RESET} {step}")
-    print()
-    print(ANSI_YELLOW + "Tip:" + ANSI_RESET + " Use `idea` again to generate a new spark." + ANSI_RESET)
+    print(Style().dim().italic().apply(f"Tip: Use `idea` again to generate a new spark."))
 
 
 async def render_command_palette(workbench, argv) -> None:
     workbench.print_header("Visual Flow")
     width = terminal_width()
     steps = ["Spark", "Sketch", "Focus", "Ship"]
-    print(render_centered("  ".join(f"{ANSI_CYAN}[ {step} ]{ANSI_RESET}" for step in steps), width))
+    
+    # Use Fluent API for steps
+    styled_steps = "  ".join(Style().color(ANSI_CYAN).bold().apply(f"[ {step} ]") for step in steps)
+    print(render_centered(styled_steps, width))
+    
     print()
-    print(render_centered(rainbow_text("THE MOST MODERN COMMAND HUB"), width))
+    # Use Gradient for the main title
+    main_title = gradient_text("THE MOST MODERN COMMAND HUB", RGB(0, 255, 255), RGB(255, 0, 255))
+    print(render_centered(main_title, width))
+    
     print()
-    print(
-        render_centered(
-            "   ".join(f"{ANSI_YELLOW}{step[:1]}{ANSI_RESET}:{ANSI_GREEN}{step[1:]}{ANSI_RESET}" for step in steps),
-            width,
-        )
-    )
+    shortcuts = "   ".join(f"{ANSI_YELLOW}{step[:1]}{ANSI_RESET}:{ANSI_GREEN}{step[1:]}{ANSI_RESET}" for step in steps)
+    print(render_centered(shortcuts, width))
+    
     print()
-    print(
-        ANSI_MAGENTA
-        + wrap_text(
-            "This palette adapts to your terminal width and gives you an energizing flow for creative work.",
-            width=width,
-            indent=2,
-        )
-        + ANSI_RESET
-    )
+    palette_desc = "This palette adapts to your terminal width and gives you an energizing flow for creative work."
+    print(render_centered(Style().color(ANSI_MAGENTA).italic().apply(palette_desc), width))
 
 
 async def reveal_secret(workbench, argv) -> None:
     workbench.print_header("Secret Magic", style=ANSI_MAGENTA)
-    print(rainbow_text("✨ HIDDEN FLOW UNLOCKED ✨"))
+    
+    # Advanced gradient
+    secret_title = gradient_text("✨ HIDDEN FLOW UNLOCKED ✨", RGB(255, 255, 255), RGB(255, 0, 150))
+    print(render_centered(secret_title))
     print()
-    for message in [
+    
+    messages = [
         "Your workspace is full of energy.",
         "A great idea is only one focused session away.",
         "Combine your momentum with structure and ship the best version first.",
-    ]:
-        print(f"{ANSI_CYAN}{message}{ANSI_RESET}")
+    ]
+    
+    for message in messages:
+        print(render_centered(Style().color(ANSI_CYAN).apply(message)))
+    
     print()
-    print(ANSI_YELLOW + "You found the secret command! Keep exploring the palette for more surprises." + ANSI_RESET)
+    tip = "You found the secret command! Keep exploring the palette for more surprises."
+    print(render_centered(Style().color(ANSI_YELLOW).dim().apply(tip)))
 
 
 def get_commands(workbench) -> list[Command]:
